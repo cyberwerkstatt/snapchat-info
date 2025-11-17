@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<title>Snapchat OSINT – Profilanalyse</title>
+
+<style>
+    body {
+        font-family: system-ui, Arial;
+        margin: 24px;
+        max-width: 980px;
+    }
+
+    label {
+        display: block;
+        margin: 8px 0 4px;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+    }
+
+    button {
+        padding: 10px 14px;
+        margin-top: 10px;
+        cursor: pointer;
+    }
+
+    .kv {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 6px 12px;
+        margin-top: 12px;
+    }
+
+    .mono {
+        font-family: ui-monospace, Menlo, Consolas;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .card {
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fafafa;
+    }
+
+    .actions a {
+        margin-right: 8px;
+    }
+
+    img.avatar {
+        width: 160px;
+        border-radius: 12px;
+    }
+</style>
+
+<h1>Snapchat OSINT – Profilanalyse</h1>
+
+<div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div>
+        <label>RapidAPI Key
+            <input id="key" type="password" placeholder="x-rapidapi-key">
+        </label>
+    </div>
+    <div>
+        <label>Snapchat Username oder URL
+            <input id="q" placeholder="z. B. username oder https://www.snapchat.com/add/xyz">
+        </label>
+    </div>
+</div>
+<button id="go">Abfragen</button>
+
+<div id="out" class="card" style="display:none">
+    <strong>Ergebnis</strong>
+
+    <div class="kv">
+        <div>Username</div>
+        <div id="uname" class="mono">–</div>
+        <div>Anzeigename</div>
+        <div id="dname" class="mono">–</div>
+        <div>Snapcode</div>
+        <div id="snapcode" class="mono">–</div>
+        <div>Profilbild</div>
+        <div id="avatar" class="mono">–</div>
+        <div>Bitmoji Hintergrund</div>
+        <div id="bg" class="mono">–</div>
+        <div>Profil-Link</div>
+        <div id="plink" class="mono">–</div>
+    </div>
+
+    <details style="margin-top:14px">
+        <summary>Rohantwort (JSON)</summary>
+        <pre id="raw" class="mono"></pre>
+    </details>
+</div>
+
+<script>
+    const $ = id => document.getElementById(id);
+    const host = "snapchat-scraper2.p.rapidapi.com";
+
+    // JSON → logisch aufbereitete Profilinfos
+    function extractSnapProfile(json) {
+        const pageProps = json?.data?.props?.pageProps;
+        if (!pageProps) return null;
+
+        const userProfile = pageProps.userProfile || {};
+        // zwei mögliche Varianten: userInfo oder publicProfileInfo
+        let u = userProfile.userInfo || userProfile.publicProfileInfo || null;
+        if (!u) return null;
+
+        // Username notfalls aus dem Seitentitel ziehen: "Celine … (@cheyenne123.4) | ..."
+        let username = u.username || null;
+        if (!username && pageProps.pageMetadata?.pageTitle) {
+            const m = pageProps.pageMetadata.pageTitle.match(/\(@([^)]*)\)/);
+            if (m) username = m[1];
+        }
+
+        return {
+            username: username,
+            displayName: u.displayName || u.title || null,
+            snapcode: u.snapcodeImageUrl
+                || pageProps.pageLinks?.snapcodeImageUrl
+                || null,
+            // Profilbild / Avatar
+            avatar: u.profilePictureUrl
+                || u.bitmoji3d?.avatarImage?.url
+                || null,
+            avatarFallback: u.bitmoji3d?.avatarImage?.fallbackUrl || null,
+            // Titelbild / Hero-Image
+            cover: u.squareHeroImageUrl
+                || pageProps.linkPreview?.twitterImage?.url
+                || null,
+            profileUrl: pageProps.pageLinks?.snapchatCanonicalUrl
+                || pageProps.pageLinks?.canonicalUrl
+                || null,
+            bio: u.bio || null,
+            website: u.websiteUrl || null,
+            address: u.address || null,
+            subscriberCount: u.subscriberCount || null
+        };
+    }
+
+    async function run() {
+        let handle = $("q").value.trim();
+        const key = $("key").value.trim();
+        if (!key) return alert("Bitte RapidAPI Key eingeben.");
+        if (!handle) return alert("Bitte Snapchat-Username oder URL eingeben.");
+
+        // führendes @ entfernen (z. B. "@cheyenne123.4")
+        handle = handle.replace(/^@/, "");
+
+        // URL → Username extrahieren
+        try {
+            const u = new URL(handle);
+            const parts = u.pathname.split("/").filter(Boolean);
+            if (parts.length) {
+                const last = parts[parts.length - 1];
+                // /add/username oder /@username
+                handle = last.replace(/^@/, "").replace(/^add\//, "");
+            }
+        } catch (e) {
+            // war keine URL, ist okay
+        }
+
+        $("out").style.display = "block";
+        $("uname").textContent = handle;
+        $("dname").textContent = "–";
+        $("snapcode").textContent = "–";
+        $("avatar").textContent = "–";
+        $("bg").textContent = "–";
+        $("plink").textContent = "–";
+        $("raw").textContent = "";
+
+        const url = `https://${host}/api/v1/users/detail?username=${encodeURIComponent(handle)}`;
+
+        try {
+            const res = await fetch(url, {
+                method: "GET",
+                headers: {
+                    "x-rapidapi-key": key,
+                    "x-rapidapi-host": host
+                }
+            });
+
+            const text = await res.text();
+            $("raw").textContent = text;
+
+            let json;
+            try { json = JSON.parse(text); } catch { json = {}; }
+
+            if (!res.ok) {
+                $("dname").textContent = `Fehler: HTTP ${res.status}`;
+                return;
+            }
+
+            const u = extractSnapProfile(json);
+            if (!u) {
+                $("dname").textContent = "Kein Profil gefunden";
+                return;
+            }
+
+            $("uname").textContent = u.username || handle;
+            $("dname").textContent = u.displayName || "–";
+
+            // Snapcode
+            if (u.snapcode) {
+                const sc = document.createElement("a");
+                sc.href = u.snapcode;
+                sc.textContent = "Snapcode öffnen";
+                sc.target = "_blank";
+                $("snapcode").innerHTML = "";
+                $("snapcode").appendChild(sc);
+            }
+
+            // Profilbild / Avatar
+            if (u.avatar) {
+                const img = document.createElement("img");
+                img.src = u.avatar;
+                img.className = "avatar";
+                img.onerror = () => {
+                    if (u.avatarFallback) img.src = u.avatarFallback;
+                };
+                $("avatar").innerHTML = "";
+                $("avatar").appendChild(img);
+            }
+
+            // Titelbild / Hero-Image
+            if (u.cover) {
+                const cover = document.createElement("img");
+                cover.src = u.cover;
+                cover.style.maxWidth = "100%";
+                cover.style.borderRadius = "12px";
+                cover.style.display = "block";
+                $("bg").innerHTML = "";
+                $("bg").appendChild(cover);
+            }
+
+            // Profil-Link
+            if (u.profileUrl) {
+                const a = document.createElement("a");
+                a.href = u.profileUrl;
+                a.textContent = u.profileUrl;
+                a.target = "_blank";
+                $("plink").innerHTML = "";
+                $("plink").appendChild(a);
+            }
+
+        } catch (e) {
+            $("dname").textContent = "Fehler bei Anfrage";
+            $("raw").textContent = String(e);
+        }
+    }
+
+    $("go").addEventListener("click", run);
+    $("q").addEventListener("keydown", e => { if (e.key === "Enter") run(); });
+</script>
+
+
+
+</html>
