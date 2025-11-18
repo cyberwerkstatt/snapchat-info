@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="de">
 <meta charset="utf-8">
-<title>Snapchat OSINT – Profilanalyse</title>
+<title>Snapchat OSINT</title>
 
 <style>
     body {
@@ -57,21 +57,21 @@
     }
 </style>
 
-<h1>Snapchat OSINT – Profilanalyse</h1>
+<h1>Snapchat OSINT</h1>
 
 <div class="row" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
     <div>
-        <label>RapidAPI Key
-            <input id="key" type="password" placeholder="x-rapidapi-key">
+        <label>API Key
+            <input id="key" type="password" placeholder="api-key">
         </label>
     </div>
     <div>
         <label>Snapchat Username oder URL
-            <input id="q" placeholder="z. B. username oder https://www.snapchat.com/add/xyz">
+            <input id="q" placeholder="z. B. username oder https://www.snapchat.com/@username">
         </label>
     </div>
 </div>
-<button id="go">Abfragen</button>
+<button id="go">Search</button>
 
 <div id="out" class="card" style="display:none">
     <strong>Ergebnis</strong>
@@ -257,6 +257,7 @@
     $("go").addEventListener("click", run);
     $("q").addEventListener("keydown", e => { if (e.key === "Enter") run(); });
 </script>
+
 
 
 
