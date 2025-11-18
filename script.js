@@ -125,10 +125,10 @@ function extractSnapProfile(json) {
 async function run() {
     let handle = $("q").value.trim();
     const key = $("key").value.trim();
-    if (!key) return alert("Bitte RapidAPI Key eingeben.");
+    if (!key) return alert("Bitte API Key eingeben.");
     if (!handle) return alert("Bitte Snapchat-Username oder URL eingeben.");
 
-    // führendes @ entfernen (z. B. "@cheyenne123.4")
+    // führendes @ entfernen (z. B. "@username")
     handle = handle.replace(/^@/, "");
 
     // URL → Username extrahieren
@@ -137,7 +137,7 @@ async function run() {
         const parts = u.pathname.split("/").filter(Boolean);
         if (parts.length) {
             const last = parts[parts.length - 1];
-            // /add/username oder /@username
+            //@username
             handle = last.replace(/^@/, "").replace(/^add\//, "");
         }
     } catch (e) {
