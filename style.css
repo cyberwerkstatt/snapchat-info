@@ -1,0 +1,82 @@
+body {
+        font-family: system-ui, Arial;
+        margin: 24px;
+        max-width: 980px;
+    }
+
+    label {
+        display: block;
+        margin: 8px 0 4px;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+    }
+
+    button {
+        padding: 10px 14px;
+        margin-top: 10px;
+        cursor: pointer;
+    }
+
+    .kv {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 6px 12px;
+        margin-top: 12px;
+    }
+
+    .mono {
+        font-family: ui-monospace, Menlo, Consolas;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .card {
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fafafa;
+    }
+
+    .actions a {
+        margin-right: 8px;
+    }
+
+    img.avatar {
+        width: 160px;
+        border-radius: 12px;
+    }
+
+    .small {
+    font-size: 12px;
+}
+
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.media-item {
+    font-size: 12px;
+}
+
+.media-item img {
+    width: 100%;
+    border-radius: 8px;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.media-item .meta {
+    margin-bottom: 4px;
+}
+
+.media-item a {
+    font-size: 11px;
+    margin-right: 6px;
+}
